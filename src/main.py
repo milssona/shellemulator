@@ -1,11 +1,13 @@
-"""Эмулятор оболочки ОС: прототип с графическим интерфейсом."""
+"""Эмулятор оболочки ОС: параметры запуска и стартовый скрипт."""
 
+import argparse
 import getpass
 import platform
 import shlex
 import tkinter
 
 MAX_CD_ARGS = 1
+NOT_SET = "не задан"
 
 
 def make_title():
@@ -13,11 +15,21 @@ def make_title():
     return f"Эмулятор - [{getpass.getuser()}@{platform.node()}]"
 
 
+def parse_args(argv=None):
+    """Разобрать параметры командной строки."""
+    parser = argparse.ArgumentParser(description="Эмулятор оболочки ОС")
+    parser.add_argument("--vfs", help="путь к физическому расположению VFS")
+    parser.add_argument("--script", help="путь к стартовому скрипту")
+    return parser.parse_args(argv)
+
+
 class EmulatorWindow:
     """Окно эмулятора с полем вывода и строкой ввода."""
 
-    def __init__(self):
+    def __init__(self, args):
         """Создать окно и расположить элементы."""
+        self.args = args
+        self.closed = False
         self.root = tkinter.Tk()
         self.root.title(make_title())
         self.output = tkinter.Text(self.root, state="disabled")
@@ -34,38 +46,68 @@ class EmulatorWindow:
         self.output.see("end")
         self.output.config(state="disabled")
 
+    def print_debug(self):
+        """Вывести в окно все заданные параметры запуска."""
+        self.print_line("Параметры запуска:")
+        self.print_line(f"  путь к VFS: {self.args.vfs or NOT_SET}")
+        self.print_line(f"  стартовый скрипт: {self.args.script or NOT_SET}")
+
     def execute(self, line):
-        """Разобрать строку и выполнить команду."""
+        """Выполнить команду. Вернуть True при успехе, False при ошибке."""
         try:
             words = shlex.split(line)
         except ValueError:
             self.print_line("ошибка: незакрытая кавычка")
-            return
+            return False
         if not words:
-            return
+            return True
         name, args = words[0], words[1:]
         if name == "exit":
-            self.cmd_exit(args)
-        elif name == "ls":
-            self.print_line(f"ls {args}")
-        elif name == "cd":
-            self.cmd_cd(args)
-        else:
-            self.print_line(f"ошибка: неизвестная команда: {name}")
+            return self.cmd_exit(args)
+        if name == "ls":
+            return self.cmd_ls(args)
+        if name == "cd":
+            return self.cmd_cd(args)
+        self.print_line(f"ошибка: неизвестная команда: {name}")
+        return False
+
+    def cmd_ls(self, args):
+        """Заглушка команды ls: вывести имя и аргументы."""
+        self.print_line(f"ls {args}")
+        return True
 
     def cmd_cd(self, args):
         """Заглушка команды cd: вывести имя и аргументы."""
         if len(args) > MAX_CD_ARGS:
-            self.print_line("cd: слишком много аргументов")
-        else:
-            self.print_line(f"cd {args}")
+            self.print_line("ошибка: cd: слишком много аргументов")
+            return False
+        self.print_line(f"cd {args}")
+        return True
 
     def cmd_exit(self, args):
         """Закрыть окно эмулятора."""
         if args:
-            self.print_line("exit: команда не принимает аргументов")
-        else:
-            self.root.destroy()
+            self.print_line("ошибка: exit не принимает аргументов")
+            return False
+        self.closed = True
+        self.root.destroy()
+        return True
+
+    def run_script(self, path):
+        """Выполнить стартовый скрипт, остановившись на первой ошибке."""
+        try:
+            with open(path, encoding="utf-8") as file:
+                lines = file.read().splitlines()
+        except OSError:
+            self.print_line(f"ошибка: не удалось открыть скрипт {path}")
+            return
+        for number, line in enumerate(lines, start=1):
+            self.print_line("> " + line)
+            if not self.execute(line):
+                self.print_line(f"ошибка в скрипте, строка {number}")
+                return
+            if self.closed:
+                return
 
     def on_enter(self, event):
         """Обработать нажатие Enter в строке ввода."""
@@ -75,13 +117,16 @@ class EmulatorWindow:
         self.execute(line)
 
     def run(self):
-        """Запустить главный цикл окна."""
+        """Показать параметры, запланировать скрипт и запустить окно."""
+        self.print_debug()
+        if self.args.script:
+            self.root.after(0, self.run_script, self.args.script)
         self.root.mainloop()
 
 
 def main():
-    """Создать окно эмулятора и запустить его."""
-    window = EmulatorWindow()
+    """Разобрать параметры, создать окно эмулятора и запустить его."""
+    window = EmulatorWindow(parse_args())
     window.run()
 
 
