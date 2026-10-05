@@ -1,0 +1,5 @@
+ls
+ls -l "my dir"
+cd /tmp
+vfs-init
+vfs-init extra

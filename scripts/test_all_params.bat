@@ -1,3 +1,4 @@
 @echo off
 cd /d "%~dp0.."
-python src\main.py --vfs vfs\example.zip --script scripts\start_ok.txt
+python tools\make_vfs.py
+python src\main.py --vfs build\vfs_deep.zip --script scripts\start_ok.txt

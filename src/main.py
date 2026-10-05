@@ -1,10 +1,12 @@
-"""Эмулятор оболочки ОС: параметры запуска и стартовый скрипт."""
+"""Эмулятор оболочки ОС: окно, параметры запуска, команды и VFS."""
 
 import argparse
 import getpass
 import platform
 import shlex
 import tkinter
+
+import vfs
 
 MAX_CD_ARGS = 1
 NOT_SET = "не задан"
@@ -30,6 +32,7 @@ class EmulatorWindow:
         """Создать окно и расположить элементы."""
         self.args = args
         self.closed = False
+        self.vfs_root = vfs.default_vfs()
         self.root = tkinter.Tk()
         self.root.title(make_title())
         self.output = tkinter.Text(self.root, state="disabled")
@@ -52,6 +55,22 @@ class EmulatorWindow:
         self.print_line(f"  путь к VFS: {self.args.vfs or NOT_SET}")
         self.print_line(f"  стартовый скрипт: {self.args.script or NOT_SET}")
 
+    def print_vfs_info(self):
+        """Вывести краткие сведения о текущей VFS."""
+        files, dirs = vfs.count_nodes(self.vfs_root)
+        self.print_line(f"VFS: файлов {files}, каталогов {dirs}")
+
+    def load_vfs(self):
+        """Загрузить VFS из архива, а при ошибке взять VFS по умолчанию."""
+        path = self.args.vfs
+        if path:
+            try:
+                self.vfs_root = vfs.load_zip(path)
+            except vfs.VfsError as error:
+                self.print_line(f"ошибка: {error}")
+                self.print_line("используется VFS по умолчанию")
+        self.print_vfs_info()
+
     def execute(self, line):
         """Выполнить команду. Вернуть True при успехе, False при ошибке."""
         try:
@@ -62,14 +81,17 @@ class EmulatorWindow:
         if not words:
             return True
         name, args = words[0], words[1:]
-        if name == "exit":
-            return self.cmd_exit(args)
-        if name == "ls":
-            return self.cmd_ls(args)
-        if name == "cd":
-            return self.cmd_cd(args)
-        self.print_line(f"ошибка: неизвестная команда: {name}")
-        return False
+        handlers = {
+            "exit": self.cmd_exit,
+            "ls": self.cmd_ls,
+            "cd": self.cmd_cd,
+            "vfs-init": self.cmd_vfs_init,
+        }
+        handler = handlers.get(name)
+        if handler is None:
+            self.print_line(f"ошибка: неизвестная команда: {name}")
+            return False
+        return handler(args)
 
     def cmd_ls(self, args):
         """Заглушка команды ls: вывести имя и аргументы."""
@@ -91,6 +113,23 @@ class EmulatorWindow:
             return False
         self.closed = True
         self.root.destroy()
+        return True
+
+    def cmd_vfs_init(self, args):
+        """Заменить текущую VFS на VFS по умолчанию."""
+        if args:
+            self.print_line("ошибка: vfs-init не принимает аргументов")
+            return False
+        try:
+            removed = vfs.clear_physical(self.args.vfs)
+        except OSError as error:
+            self.print_line(f"ошибка: не удалось очистить VFS: {error}")
+            return False
+        self.vfs_root = vfs.default_vfs()
+        if removed:
+            self.print_line(f"файл VFS удалён: {self.args.vfs}")
+        self.print_line("VFS заменена на VFS по умолчанию")
+        self.print_vfs_info()
         return True
 
     def run_script(self, path):
@@ -117,8 +156,9 @@ class EmulatorWindow:
         self.execute(line)
 
     def run(self):
-        """Показать параметры, запланировать скрипт и запустить окно."""
+        """Показать параметры, загрузить VFS, запустить скрипт и окно."""
         self.print_debug()
+        self.load_vfs()
         if self.args.script:
             self.root.after(0, self.run_script, self.args.script)
         self.root.mainloop()
