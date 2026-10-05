@@ -1,0 +1,14 @@
+help
+ls
+touch new.txt
+touch readme.txt
+touch "my file.txt" a.txt
+ls
+cd docs
+touch notes.txt
+ls
+cat /new.txt
+touch ../b.txt
+cd
+ls
+touch nope/file.txt

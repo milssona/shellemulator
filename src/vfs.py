@@ -121,11 +121,8 @@ def split_path(path):
     return [part for part in path.split("/") if part not in ("", ".")]
 
 
-def resolve(root, cwd, path):
-    """Найти узел по пути (абсолютному или относительному).
-
-    Вернуть пару: узел и список имён от корня до этого узла.
-    """
+def normalize(cwd, path):
+    """Вычислить список имён от корня для заданного пути."""
     parts = [] if path.startswith("/") else list(cwd)
     for part in split_path(path):
         if part == "..":
@@ -133,14 +130,47 @@ def resolve(root, cwd, path):
                 parts.pop()
         else:
             parts.append(part)
+    return parts
+
+
+def find_node(root, parts):
+    """Найти узел по списку имён от корня. Если узла нет, вернуть None."""
     node = root
     for part in parts:
         node = node.children.get(part)
         if node is None:
-            raise VfsError(f"{path}: нет такого файла или каталога")
+            return None
+    return node
+
+
+def resolve(root, cwd, path):
+    """Найти узел по пути (абсолютному или относительному).
+
+    Вернуть пару: узел и список имён от корня до этого узла.
+    """
+    parts = normalize(cwd, path)
+    node = find_node(root, parts)
+    if node is None:
+        raise VfsError(f"{path}: нет такого файла или каталога")
     return node, parts
 
 
 def file_lines(node):
     """Вернуть содержимое файла построчно (base64 для двоичных данных)."""
     return file_text(node).splitlines()
+
+
+def create_file(root, cwd, path):
+    """Создать пустой файл в памяти, если такого имени ещё нет.
+
+    Родительский каталог должен существовать.
+    """
+    parts = normalize(cwd, path)
+    if find_node(root, parts) is not None:
+        return
+    parent = find_node(root, parts[:-1])
+    if parent is None:
+        raise VfsError(f"{path}: нет такого файла или каталога")
+    if not parent.is_dir:
+        raise VfsError(f"{path}: не является каталогом")
+    parent.children[parts[-1]] = Node(is_dir=False)

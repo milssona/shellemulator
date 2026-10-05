@@ -14,6 +14,19 @@ HEAD_LINES = 10
 HEAD_SHORT_ARGS = 1
 HEAD_LONG_ARGS = 3
 NOT_SET = "не задан"
+HELP_WIDTH = 24
+
+COMMAND_HELP = (
+    ("ls [путь]", "вывести содержимое каталога"),
+    ("cd [путь]", "сменить текущий каталог"),
+    ("cat файл...", "вывести содержимое файлов"),
+    ("head [-n ЧИСЛО] файл", "вывести первые строки файла"),
+    ("touch файл...", "создать пустой файл в памяти"),
+    ("date", "вывести текущие дату и время"),
+    ("vfs-init", "заменить VFS на VFS по умолчанию"),
+    ("help", "показать список команд"),
+    ("exit", "закрыть эмулятор"),
+)
 
 
 def make_title():
@@ -110,8 +123,10 @@ class EmulatorWindow:
             "cd": self.cmd_cd,
             "cat": self.cmd_cat,
             "head": self.cmd_head,
+            "touch": self.cmd_touch,
             "date": self.cmd_date,
             "vfs-init": self.cmd_vfs_init,
+            "help": self.cmd_help,
         }
         handler = handlers.get(name)
         if handler is None:
@@ -183,6 +198,25 @@ class EmulatorWindow:
             return False
         for line in vfs.file_lines(node)[:count]:
             self.print_line(line)
+        return True
+
+    def cmd_touch(self, args):
+        """Создать пустые файлы в памяти: touch файл..."""
+        if not args:
+            return self.fail("touch: не указан файл")
+        for path in args:
+            try:
+                vfs.create_file(self.vfs_root, self.cwd, path)
+            except vfs.VfsError as error:
+                return self.fail(f"touch: {error}")
+        return True
+
+    def cmd_help(self, args):
+        """Вывести список команд с описанием."""
+        if args:
+            return self.fail("help: команда не принимает аргументов")
+        for usage, description in COMMAND_HELP:
+            self.print_line(f"{usage:<{HELP_WIDTH}}{description}")
         return True
 
     def cmd_date(self, args):
