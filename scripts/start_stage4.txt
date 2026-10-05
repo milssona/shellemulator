@@ -1,0 +1,16 @@
+ls
+ls docs
+ls /docs/manuals
+cd docs
+ls
+cd manuals/deep
+ls
+cat "notes.txt"
+head lines.txt
+head -n 3 lines.txt
+cat data.bin
+cd ../..
+ls
+cd
+date
+cat docs

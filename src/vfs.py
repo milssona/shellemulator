@@ -114,3 +114,33 @@ def file_text(node):
     if is_binary(node.data):
         return base64.b64encode(node.data).decode("ascii")
     return node.data.decode(ENCODING)
+
+
+def split_path(path):
+    """Разбить путь на части, отбросив пустые части и текущий каталог."""
+    return [part for part in path.split("/") if part not in ("", ".")]
+
+
+def resolve(root, cwd, path):
+    """Найти узел по пути (абсолютному или относительному).
+
+    Вернуть пару: узел и список имён от корня до этого узла.
+    """
+    parts = [] if path.startswith("/") else list(cwd)
+    for part in split_path(path):
+        if part == "..":
+            if parts:
+                parts.pop()
+        else:
+            parts.append(part)
+    node = root
+    for part in parts:
+        node = node.children.get(part)
+        if node is None:
+            raise VfsError(f"{path}: нет такого файла или каталога")
+    return node, parts
+
+
+def file_lines(node):
+    """Вернуть содержимое файла построчно (base64 для двоичных данных)."""
+    return file_text(node).splitlines()

@@ -1,3 +1,4 @@
 ls
-ls -l "my dir"
-cd /tmp
+ls "docs"
+cd docs
+ls

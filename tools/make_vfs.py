@@ -4,6 +4,10 @@ import os
 import zipfile
 
 BUILD_DIR = "build"
+LONG_LINES = 15
+LONG_TEXT = "".join(
+    f"строка {number}\n" for number in range(1, LONG_LINES + 1)
+).encode("utf-8")
 
 MINIMAL = {
     "hello.txt": b"hello\n",
@@ -21,6 +25,7 @@ DEEP = {
     "docs/manuals/intro.txt": b"level 2\n",
     "docs/manuals/deep/notes.txt": b"level 3\n",
     "docs/manuals/deep/data.bin": bytes(range(16)),
+    "docs/manuals/deep/lines.txt": LONG_TEXT,
 }
 
 ARCHIVES = {

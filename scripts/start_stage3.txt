@@ -1,5 +1,4 @@
 ls
-ls -l "my dir"
-cd /tmp
+cd docs
 vfs-init
 vfs-init extra
