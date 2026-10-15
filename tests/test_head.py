@@ -2,8 +2,9 @@
 
 import unittest
 
-import context  # noqa: F401
-import main
+import context
+
+main = context.load("main")
 
 
 class ParseHeadArgsTest(unittest.TestCase):

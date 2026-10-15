@@ -6,8 +6,9 @@ import tempfile
 import unittest
 import zipfile
 
-import context  # noqa: F401
-import vfs
+import context
+
+vfs = context.load("vfs")
 
 BINARY = bytes(range(8))
 FILES = {
@@ -32,46 +33,49 @@ def make_root():
 class VfsTest(unittest.TestCase):
     """Проверки загрузки и поиска узлов в VFS."""
 
-    def setUp(self):
-        """Подготовить VFS перед каждым тестом."""
-        self.root = make_root()
-
     def test_count_nodes(self):
         """Файлы и каталоги подсчитываются правильно."""
-        self.assertEqual(vfs.count_nodes(self.root), (FILE_COUNT, DIR_COUNT))
+        root = make_root()
+        self.assertEqual(vfs.count_nodes(root), (FILE_COUNT, DIR_COUNT))
 
     def test_resolve_absolute(self):
         """Абсолютный путь ищется от корня."""
-        node, parts = vfs.resolve(self.root, ["docs"], "/readme.txt")
+        root = make_root()
+        node, parts = vfs.resolve(root, ["docs"], "/readme.txt")
         self.assertFalse(node.is_dir)
         self.assertEqual(parts, ["readme.txt"])
 
     def test_resolve_relative(self):
         """Относительный путь ищется от текущего каталога."""
-        node, parts = vfs.resolve(self.root, ["docs"], "deep")
+        root = make_root()
+        node, parts = vfs.resolve(root, ["docs"], "deep")
         self.assertTrue(node.is_dir)
         self.assertEqual(parts, ["docs", "deep"])
 
     def test_resolve_parent(self):
         """Часть .. поднимает на уровень вверх, в корне остаётся корень."""
-        _, parts = vfs.resolve(self.root, ["docs", "deep"], "../..")
+        root = make_root()
+        _, parts = vfs.resolve(root, ["docs", "deep"], "../..")
         self.assertEqual(parts, [])
-        _, parts = vfs.resolve(self.root, [], "..")
+        _, parts = vfs.resolve(root, [], "..")
         self.assertEqual(parts, [])
 
     def test_resolve_missing(self):
         """Несуществующий путь вызывает ошибку VFS."""
+        root = make_root()
         with self.assertRaises(vfs.VfsError):
-            vfs.resolve(self.root, [], "nope.txt")
+            vfs.resolve(root, [], "nope.txt")
 
     def test_file_lines_text(self):
         """Текстовый файл читается построчно."""
-        node, _ = vfs.resolve(self.root, [], "readme.txt")
+        root = make_root()
+        node, _ = vfs.resolve(root, [], "readme.txt")
         self.assertEqual(vfs.file_lines(node), ["hello", "world"])
 
     def test_file_lines_binary(self):
         """Двоичный файл выводится в формате base64."""
-        node, _ = vfs.resolve(self.root, [], "docs/deep/data.bin")
+        root = make_root()
+        node, _ = vfs.resolve(root, [], "docs/deep/data.bin")
         expected = base64.b64encode(BINARY).decode("ascii")
         self.assertEqual(vfs.file_lines(node), [expected])
 
